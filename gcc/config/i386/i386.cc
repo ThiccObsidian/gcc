@@ -22102,15 +22102,6 @@ ix86_shift_rotate_cost (const struct processor_costs *cost,
 	    }
 	  /* FALLTHRU */
 	case V32QImode:
-	  if (TARGET_GFNI && constant_op1)
-	    {
-	      /* Use vgf2p8affine. One extra load for the mask, but in a loop
-		 with enough registers it will be moved out. So for now don't
-		 account the constant mask load. This is not quite right
-		 for non loop vectorization.  */
-	      extra = 0;
-	      return ix86_vec_cost (mode, cost->sse_op) + extra;
-	    }
 	  if (TARGET_AVX2)
 	    /* Use vpbroadcast.  */
 	    extra = cost->sse_op;
@@ -22144,11 +22135,6 @@ ix86_shift_rotate_cost (const struct processor_costs *cost,
 	  else
 	    count = 9;
 	  return ix86_vec_cost (mode, cost->sse_op * count) + extra;
-
-	case V64QImode:
-	  /* Ignore the mask load for GF2P8AFFINEQB.  */
-	  extra = 0;
-	  return ix86_vec_cost (mode, cost->sse_op) + extra;
 
 	case V2DImode:
 	case V4DImode:
@@ -27202,9 +27188,9 @@ ix86_memtag_can_tag_addresses ()
   return ix86_lam_type != lam_none && TARGET_LP64;
 }
 
-/* Implement TARGET_MEMTAG_TAG_BITSIZE.  */
+/* Implement TARGET_MEMTAG_TAG_SIZE.  */
 unsigned char
-ix86_memtag_tag_bitsize ()
+ix86_memtag_tag_size ()
 {
   return IX86_HWASAN_TAG_SIZE;
 }
@@ -28178,8 +28164,8 @@ ix86_libgcc_floating_mode_supported_p
 #undef TARGET_MEMTAG_UNTAGGED_POINTER
 #define TARGET_MEMTAG_UNTAGGED_POINTER ix86_memtag_untagged_pointer
 
-#undef TARGET_MEMTAG_TAG_BITSIZE
-#define TARGET_MEMTAG_TAG_BITSIZE ix86_memtag_tag_bitsize
+#undef TARGET_MEMTAG_TAG_SIZE
+#define TARGET_MEMTAG_TAG_SIZE ix86_memtag_tag_size
 
 #undef TARGET_GEN_CCMP_FIRST
 #define TARGET_GEN_CCMP_FIRST ix86_gen_ccmp_first

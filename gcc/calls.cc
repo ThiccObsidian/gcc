@@ -3235,6 +3235,11 @@ expand_call (tree exp, rtx target, int ignore)
       if (pass)
 	precompute_arguments (num_actuals, args);
 
+      /* Now we are about to start emitting insns that can be deleted
+	 if a libcall is deleted.  */
+      if (pass && (flags & ECF_MALLOC))
+	start_sequence ();
+
       /* Check the canary value for sibcall or function which doesn't
 	 return and could throw.  */
       if ((pass == 0
@@ -3766,23 +3771,25 @@ expand_call (tree exp, rtx target, int ignore)
 	  valreg = gen_rtx_REG (TYPE_MODE (rettype), REGNO (valreg));
 	}
 
-      /* If the return register exists, for malloc like
-	 function calls, mark the return register with the
-	 alignment and noalias reg note.  */
-      if (pass && (flags & ECF_MALLOC) && valreg)
+      if (pass && (flags & ECF_MALLOC))
 	{
 	  rtx temp = gen_reg_rtx (GET_MODE (valreg));
-	  rtx_insn *last;
+	  rtx_insn *last, *insns;
 
 	  /* The return value from a malloc-like function is a pointer.  */
 	  if (TREE_CODE (rettype) == POINTER_TYPE)
 	    mark_reg_pointer (temp, MALLOC_ABI_ALIGNMENT);
 
-	  last = emit_move_insn (temp, valreg);
+	  emit_move_insn (temp, valreg);
 
 	  /* The return value from a malloc-like function cannot alias
 	     anything else.  */
+	  last = get_last_insn ();
 	  add_reg_note (last, REG_NOALIAS, temp);
+
+	  /* Write out the sequence.  */
+	  insns = end_sequence ();
+	  emit_insn (insns);
 	  valreg = temp;
 	}
 

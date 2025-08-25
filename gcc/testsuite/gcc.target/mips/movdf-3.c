@@ -4,7 +4,7 @@
 
 void bar (void);
 
-NOMIPS16 double
+double
 foo (int x, double a)
 {
   return a;

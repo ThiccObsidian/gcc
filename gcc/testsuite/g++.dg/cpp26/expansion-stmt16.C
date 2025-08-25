@@ -1,6 +1,6 @@
 // C++26 P1306R5 - Expansion statements
 // { dg-do compile { target c++11 } }
-// { dg-options "-fno-implicit-constexpr" }
+// { dg-options "" }
 
 struct A { int s; };
 constexpr A a[] = { { 3 }, { 4 }, { 5 }, { 6 }, { 7 } };

@@ -57,7 +57,7 @@ along with GCC; see the file COPYING3.  If not see
   "%(asm_errata_skip) "
 
 #define LINK_RELAX_SPEC                         \
-  "%{!r:%{mrelax:--relax}} "
+  "%{mrelax:--relax} "
 
 #undef  LINK_SPEC
 #define LINK_SPEC                               \

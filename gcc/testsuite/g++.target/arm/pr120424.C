@@ -1,7 +1,5 @@
 /* { dg-do compile } */
-/* { dg-require-effective-target arm_arch_v7_ok } */
-/* { dg-options "-O2 -fstack-clash-protection -fnon-call-exceptions" } */
-/* { dg-add-options arm_arch_v7 } */
+/* { dg-options "-march=armv7 -O2 -fstack-clash-protection -fnon-call-exceptions" } */
 /* { dg-final { scan-assembler-not {#-8} } } */
 /* LRA register elimination gets confused when register spilling
    causes arm_frame_pointer_required to switch from false to true, and

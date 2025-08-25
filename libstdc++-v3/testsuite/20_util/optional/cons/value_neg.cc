@@ -37,4 +37,3 @@ int main()
   }
 }
 // { dg-prune-output "no type .*enable_if" }
-// { dg-prune-output "no matching function for call to 'main..::U::U..'" }

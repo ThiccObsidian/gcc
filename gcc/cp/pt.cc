@@ -22537,16 +22537,12 @@ tsubst_expr (tree t, tree args, tsubst_flags_t complain, tree in_decl)
 
     case OFFSET_REF:
       {
-	/* We should only get here for an OFFSET_REF like A::m; a .* in a
-	   template is represented as a DOTSTAR_EXPR.  */
-	gcc_checking_assert
-	  (same_type_p (TREE_TYPE (t), TREE_TYPE (TREE_OPERAND (t, 1))));
+	tree type = tsubst (TREE_TYPE (t), args, complain, in_decl);
 	tree op0 = RECUR (TREE_OPERAND (t, 0));
 	tree op1 = RECUR (TREE_OPERAND (t, 1));
-	tree type = TREE_TYPE (op1);
 	r = build2 (OFFSET_REF, type, op0, op1);
 	PTRMEM_OK_P (r) = PTRMEM_OK_P (t);
-	if (!mark_used (op1, complain)
+	if (!mark_used (TREE_OPERAND (r, 1), complain)
 	    && !(complain & tf_error))
 	  RETURN (error_mark_node);
 	RETURN (r);
@@ -32827,6 +32823,11 @@ finish_expansion_stmt (tree expansion_stmt, tree args,
 					 tf_warning_or_error);
       if (sz < 0)
 	return;
+      if (sz == 0)
+	{
+	  error_at (loc, "empty structured binding");
+	  return;
+	}
       n = sz;
       tree auto_node = make_auto ();
       tree decomp_type = cp_build_reference_type (auto_node, true);
@@ -32838,8 +32839,7 @@ finish_expansion_stmt (tree expansion_stmt, tree args,
 	= DECL_DECLARED_CONSTEXPR_P (range_decl);
       if (DECL_DECLARED_CONSTEXPR_P (decl))
 	TREE_READONLY (decl) = 1;
-      if (n)
-	fit_decomposition_lang_decl (decl, NULL_TREE);
+      fit_decomposition_lang_decl (decl, NULL_TREE);
       pushdecl (decl);
       cp_decomp this_decomp;
       this_decomp.count = n;
@@ -32860,7 +32860,7 @@ finish_expansion_stmt (tree expansion_stmt, tree args,
       DECL_NAME (decl) = for_range__identifier;
       cp_finish_decl (decl, expansion_init,
 		      /*is_constant_init*/false, NULL_TREE,
-		      LOOKUP_ONLYCONVERTING, n ? &this_decomp : NULL);
+		      LOOKUP_ONLYCONVERTING, &this_decomp);
       DECL_NAME (decl) = NULL_TREE;
     }
 

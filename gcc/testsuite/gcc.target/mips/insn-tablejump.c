@@ -1,7 +1,7 @@
 /* { dg-do run } */
-/* { dg-options "(-mmicromips) -mabi=32" } */
+/* { dg-options "-mmicromips" } */
 
-MICROMIPS int __attribute__ ((noinline))
+int __attribute__ ((noinline))
 frob (int i)
 {
   switch (i)
@@ -22,7 +22,7 @@ frob (int i)
   return i;
 }
 
-MICROMIPS int
+int
 main (int argc, char **argv)
 {
   asm ("" : "+r" (argc));

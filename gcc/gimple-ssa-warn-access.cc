@@ -57,7 +57,6 @@
 #include "pointer-query.h"
 #include "pretty-print-markup.h"
 #include "gcc-urlifier.h"
-#include "diagnostic-context-rich-location.h"
 
 /* Return true if tree node X has an associated location.  */
 
@@ -170,19 +169,17 @@ warn_string_no_nul (location_t loc, GimpleOrTree expr, const char *fname,
   if (expr)
     {
       tree func = get_callee_fndecl (expr);
-      rich_location_with_details richloc (loc, expr);
-
       if (bndrng)
 	{
 	  if (wi::ltu_p (maxsiz, bndrng[0]))
-	    warned = warning_at (&richloc, opt,
+	    warned = warning_at (loc, opt,
 				 "%qD specified bound %s exceeds "
 				 "maximum object size %E",
 				 func, bndstr, maxobjsize);
 	  else
 	    {
 	      bool maybe = wi::to_wide (size) == bndrng[0];
-	      warned = warning_at (&richloc, opt,
+	      warned = warning_at (loc, opt,
 				   exact
 				   ? G_("%qD specified bound %s exceeds "
 					"the size %E of unterminated array")
@@ -197,7 +194,7 @@ warn_string_no_nul (location_t loc, GimpleOrTree expr, const char *fname,
 	    }
 	}
       else
-	warned = warning_at (&richloc, opt,
+	warned = warning_at (loc, opt,
 			     "%qD argument missing terminating nul",
 			     func);
     }
@@ -489,16 +486,14 @@ maybe_warn_nonstring_arg (tree fndecl, GimpleOrTree exp)
       tree maxobjsize = max_object_size ();
       if (tree_int_cst_lt (maxobjsize, bndrng[0]))
 	{
-	  rich_location_with_details richloc (loc, exp);
-
 	  bool warned = false;
 	  if (tree_int_cst_equal (bndrng[0], bndrng[1]))
-	    warned = warning_at (&richloc, OPT_Wstringop_overread,
+	    warned = warning_at (loc, OPT_Wstringop_overread,
 				 "%qD specified bound %E "
 				 "exceeds maximum object size %E",
 				 fndecl, bndrng[0], maxobjsize);
 	  else
-	    warned = warning_at (&richloc, OPT_Wstringop_overread,
+	    warned = warning_at (loc, OPT_Wstringop_overread,
 				 "%qD specified bound [%E, %E] "
 				 "exceeds maximum object size %E",
 				 fndecl, bndrng[0], bndrng[1],
@@ -650,21 +645,20 @@ maybe_warn_nonstring_arg (tree fndecl, GimpleOrTree exp)
       auto_diagnostic_group d;
       if (wi::ltu_p (asize, wibnd))
 	{
-	  rich_location_with_details richloc (loc, exp);
 	  if (bndrng[0] == bndrng[1])
-	    warned = warning_at (&richloc, OPT_Wstringop_overread,
+	    warned = warning_at (loc, OPT_Wstringop_overread,
 				 "%qD argument %i declared attribute "
 				 "%<nonstring%> is smaller than the specified "
 				 "bound %wu",
 				 fndecl, argno + 1, wibnd.to_uhwi ());
 	  else if (wi::ltu_p (asize, wi::to_offset (bndrng[0])))
-	    warned = warning_at (&richloc, OPT_Wstringop_overread,
+	    warned = warning_at (loc, OPT_Wstringop_overread,
 				 "%qD argument %i declared attribute "
 				 "%<nonstring%> is smaller than "
 				 "the specified bound [%E, %E]",
 				 fndecl, argno + 1, bndrng[0], bndrng[1]);
 	  else
-	    warned = warning_at (&richloc, OPT_Wstringop_overread,
+	    warned = warning_at (loc, OPT_Wstringop_overread,
 				 "%qD argument %i declared attribute "
 				 "%<nonstring%> may be smaller than "
 				 "the specified bound [%E, %E]",
@@ -736,17 +730,16 @@ maybe_warn_for_bound (opt_code opt, location_t loc, GimpleOrTree exp, tree func,
       auto_diagnostic_group d;
       if (tree_int_cst_lt (maxobjsize, bndrng[0]))
 	{
-	  rich_location_with_details richloc (loc, exp);
 	  if (bndrng[0] == bndrng[1])
 	    warned = (func
-		      ? warning_at (&richloc, opt,
+		      ? warning_at (loc, opt,
 				    (maybe
 				     ? G_("%qD specified bound %E may "
 					  "exceed maximum object size %E")
 				     : G_("%qD specified bound %E "
 					  "exceeds maximum object size %E")),
 				    func, bndrng[0], maxobjsize)
-		      : warning_at (&richloc, opt,
+		      : warning_at (loc, opt,
 				    (maybe
 				     ? G_("specified bound %E may "
 					  "exceed maximum object size %E")
@@ -755,7 +748,7 @@ maybe_warn_for_bound (opt_code opt, location_t loc, GimpleOrTree exp, tree func,
 				    bndrng[0], maxobjsize));
 	  else
 	    warned = (func
-		      ? warning_at (&richloc, opt,
+		      ? warning_at (loc, opt,
 				    (maybe
 				     ? G_("%qD specified bound [%E, %E] may "
 					  "exceed maximum object size %E")
@@ -763,7 +756,7 @@ maybe_warn_for_bound (opt_code opt, location_t loc, GimpleOrTree exp, tree func,
 					  "exceeds maximum object size %E")),
 				    func,
 				    bndrng[0], bndrng[1], maxobjsize)
-		      : warning_at (&richloc, opt,
+		      : warning_at (loc, opt,
 				    (maybe
 				     ? G_("specified bound [%E, %E] may "
 					  "exceed maximum object size %E")
@@ -774,43 +767,37 @@ maybe_warn_for_bound (opt_code opt, location_t loc, GimpleOrTree exp, tree func,
       else if (!size || tree_int_cst_le (bndrng[0], size))
 	return false;
       else if (tree_int_cst_equal (bndrng[0], bndrng[1]))
-	{
-	  rich_location_with_details richloc (loc, exp);
-	  warned = (func
-		  ? warning_at (&richloc, opt,
+	warned = (func
+		  ? warning_at (loc, opt,
 				(maybe
 				 ? G_("%qD specified bound %E may exceed "
 				      "source size %E")
 				 : G_("%qD specified bound %E exceeds "
 				      "source size %E")),
 				func, bndrng[0], size)
-		  : warning_at (&richloc, opt,
+		  : warning_at (loc, opt,
 				(maybe
 				 ? G_("specified bound %E may exceed "
 				      "source size %E")
 				 : G_("specified bound %E exceeds "
 				      "source size %E")),
 				bndrng[0], size));
-	}
       else
-	{
-	  rich_location_with_details richloc (loc, exp);
-	  warned = (func
-		  ? warning_at (&richloc, opt,
+	warned = (func
+		  ? warning_at (loc, opt,
 				(maybe
 				 ? G_("%qD specified bound [%E, %E] may "
 				      "exceed source size %E")
 				 : G_("%qD specified bound [%E, %E] exceeds "
 				      "source size %E")),
 				func, bndrng[0], bndrng[1], size)
-		  : warning_at (&richloc, opt,
+		  : warning_at (loc, opt,
 				(maybe
 				 ? G_("specified bound [%E, %E] may exceed "
 				      "source size %E")
 				 : G_("specified bound [%E, %E] exceeds "
 				      "source size %E")),
 				bndrng[0], bndrng[1], size));
-	}
       if (warned)
 	{
 	  if (pad && pad->src.ref
@@ -824,7 +811,6 @@ maybe_warn_for_bound (opt_code opt, location_t loc, GimpleOrTree exp, tree func,
     }
 
   bool maybe = pad && pad->dst.phi ();
-  rich_location_with_details richloc (loc, exp);
   if (maybe)
     {
       /* Issue a "maybe" warning only if the PHI refers to objects
@@ -838,14 +824,14 @@ maybe_warn_for_bound (opt_code opt, location_t loc, GimpleOrTree exp, tree func,
     {
       if (bndrng[0] == bndrng[1])
 	warned = (func
-		  ? warning_at (&richloc, opt,
+		  ? warning_at (loc, opt,
 				(maybe
 				 ? G_("%qD specified size %E may "
 				      "exceed maximum object size %E")
 				 : G_("%qD specified size %E "
 				      "exceeds maximum object size %E")),
 				func, bndrng[0], maxobjsize)
-		  : warning_at (&richloc, opt,
+		  : warning_at (loc, opt,
 				(maybe
 				 ? G_("specified size %E may exceed "
 				      "maximum object size %E")
@@ -854,14 +840,14 @@ maybe_warn_for_bound (opt_code opt, location_t loc, GimpleOrTree exp, tree func,
 				bndrng[0], maxobjsize));
       else
 	warned = (func
-		  ? warning_at (&richloc, opt,
+		  ? warning_at (loc, opt,
 				(maybe
 				 ? G_("%qD specified size between %E and %E "
 				      "may exceed maximum object size %E")
 				 : G_("%qD specified size between %E and %E "
 				      "exceeds maximum object size %E")),
 				func, bndrng[0], bndrng[1], maxobjsize)
-		  : warning_at (&richloc, opt,
+		  : warning_at (loc, opt,
 				(maybe
 				 ? G_("specified size between %E and %E "
 				      "may exceed maximum object size %E")
@@ -873,14 +859,14 @@ maybe_warn_for_bound (opt_code opt, location_t loc, GimpleOrTree exp, tree func,
     return false;
   else if (tree_int_cst_equal (bndrng[0], bndrng[1]))
     warned = (func
-	      ? warning_at (&richloc, opt,
+	      ? warning_at (loc, opt,
 			    (maybe
 			     ? G_("%qD specified bound %E may exceed "
 				  "destination size %E")
 			     : G_("%qD specified bound %E exceeds "
 				  "destination size %E")),
 			    func, bndrng[0], size)
-	      : warning_at (&richloc, opt,
+	      : warning_at (loc, opt,
 			    (maybe
 			     ? G_("specified bound %E may exceed "
 				  "destination size %E")
@@ -889,14 +875,14 @@ maybe_warn_for_bound (opt_code opt, location_t loc, GimpleOrTree exp, tree func,
 			    bndrng[0], size));
   else
     warned = (func
-	      ? warning_at (&richloc, opt,
+	      ? warning_at (loc, opt,
 			    (maybe
 			     ? G_("%qD specified bound [%E, %E] may exceed "
 				  "destination size %E")
 			     : G_("%qD specified bound [%E, %E] exceeds "
 				  "destination size %E")),
 			    func, bndrng[0], bndrng[1], size)
-	      : warning_at (&richloc, opt,
+	      : warning_at (loc, opt,
 			    (maybe
 			     ? G_("specified bound [%E, %E] exceeds "
 				  "destination size %E")
@@ -947,13 +933,11 @@ warn_for_access (location_t loc, tree func, GimpleOrTree exp, int opt,
 {
   bool warned = false;
 
-  rich_location_with_details richloc (loc, exp);
-
   if (write && read)
     {
       if (tree_int_cst_equal (range[0], range[1]))
 	warned = (func
-		  ? warning_n (&richloc, opt, tree_to_uhwi (range[0]),
+		  ? warning_n (loc, opt, tree_to_uhwi (range[0]),
 			       (maybe
 				? G_("%qD may access %E byte in a region "
 				     "of size %E")
@@ -965,7 +949,7 @@ warn_for_access (location_t loc, tree func, GimpleOrTree exp, int opt,
 				 : G_ ("%qD accessing %E bytes in a region "
 				       "of size %E")),
 			       func, range[0], size)
-		  : warning_n (&richloc, opt, tree_to_uhwi (range[0]),
+		  : warning_n (loc, opt, tree_to_uhwi (range[0]),
 			       (maybe
 				? G_("may access %E byte in a region "
 				     "of size %E")
@@ -981,14 +965,14 @@ warn_for_access (location_t loc, tree func, GimpleOrTree exp, int opt,
 	{
 	  /* Avoid printing the upper bound if it's invalid.  */
 	  warned = (func
-		    ? warning_at (&richloc, opt,
+		    ? warning_at (loc, opt,
 				  (maybe
 				   ? G_("%qD may access %E or more bytes "
 					"in a region of size %E")
 				   : G_("%qD accessing %E or more bytes "
 					"in a region of size %E")),
 				  func, range[0], size)
-		    : warning_at (&richloc, opt,
+		    : warning_at (loc, opt,
 				  (maybe
 				   ? G_("may access %E or more bytes "
 					"in a region of size %E")
@@ -998,14 +982,14 @@ warn_for_access (location_t loc, tree func, GimpleOrTree exp, int opt,
 	}
       else
 	warned = (func
-		  ? warning_at (&richloc, opt,
+		  ? warning_at (loc, opt,
 				(maybe
 				 ? G_("%qD may access between %E and %E "
 				      "bytes in a region of size %E")
 				 : G_("%qD accessing between %E and %E "
 				      "bytes in a region of size %E")),
 				func, range[0], range[1], size)
-		  : warning_at (&richloc, opt,
+		  : warning_at (loc, opt,
 				(maybe
 				 ? G_("may access between %E and %E bytes "
 				      "in a region of size %E")
@@ -1019,7 +1003,7 @@ warn_for_access (location_t loc, tree func, GimpleOrTree exp, int opt,
     {
       if (tree_int_cst_equal (range[0], range[1]))
 	warned = (func
-		  ? warning_n (&richloc, opt, tree_to_uhwi (range[0]),
+		  ? warning_n (loc, opt, tree_to_uhwi (range[0]),
 			       (maybe
 				? G_("%qD may write %E byte into a region "
 				     "of size %E")
@@ -1031,7 +1015,7 @@ warn_for_access (location_t loc, tree func, GimpleOrTree exp, int opt,
 				: G_("%qD writing %E bytes into a region "
 				     "of size %E overflows the destination")),
 			       func, range[0], size)
-		  : warning_n (&richloc, opt, tree_to_uhwi (range[0]),
+		  : warning_n (loc, opt, tree_to_uhwi (range[0]),
 			       (maybe
 				? G_("may write %E byte into a region "
 				     "of size %E")
@@ -1047,7 +1031,7 @@ warn_for_access (location_t loc, tree func, GimpleOrTree exp, int opt,
 	{
 	  /* Avoid printing the upper bound if it's invalid.  */
 	  warned = (func
-		    ? warning_at (&richloc, opt,
+		    ? warning_at (loc, opt,
 				  (maybe
 				   ? G_("%qD may write %E or more bytes "
 					"into a region of size %E")
@@ -1055,7 +1039,7 @@ warn_for_access (location_t loc, tree func, GimpleOrTree exp, int opt,
 					"into a region of size %E overflows "
 					"the destination")),
 				  func, range[0], size)
-		    : warning_at (&richloc, opt,
+		    : warning_at (loc, opt,
 				  (maybe
 				   ? G_("may write %E or more bytes into "
 					"a region of size %E")
@@ -1066,7 +1050,7 @@ warn_for_access (location_t loc, tree func, GimpleOrTree exp, int opt,
 	}
       else
 	warned = (func
-		  ? warning_at (&richloc, opt,
+		  ? warning_at (loc, opt,
 				(maybe
 				 ? G_("%qD may write between %E and %E bytes "
 				      "into a region of size %E")
@@ -1074,7 +1058,7 @@ warn_for_access (location_t loc, tree func, GimpleOrTree exp, int opt,
 				      "into a region of size %E overflows "
 				      "the destination")),
 				func, range[0], range[1], size)
-		  : warning_at (&richloc, opt,
+		  : warning_at (loc, opt,
 				(maybe
 				 ? G_("may write between %E and %E bytes "
 				      "into a region of size %E")
@@ -1089,7 +1073,7 @@ warn_for_access (location_t loc, tree func, GimpleOrTree exp, int opt,
     {
       if (tree_int_cst_equal (range[0], range[1]))
 	warned = (func
-		  ? warning_n (&richloc, OPT_Wstringop_overread,
+		  ? warning_n (loc, OPT_Wstringop_overread,
 			       tree_to_uhwi (range[0]),
 			       (maybe
 				? G_("%qD may read %E byte from a region "
@@ -1102,7 +1086,7 @@ warn_for_access (location_t loc, tree func, GimpleOrTree exp, int opt,
 				: G_("%qD reading %E bytes from a region "
 				     "of size %E")),
 			       func, range[0], size)
-		  : warning_n (&richloc, OPT_Wstringop_overread,
+		  : warning_n (loc, OPT_Wstringop_overread,
 			       tree_to_uhwi (range[0]),
 			       (maybe
 				? G_("may read %E byte from a region "
@@ -1119,14 +1103,14 @@ warn_for_access (location_t loc, tree func, GimpleOrTree exp, int opt,
 	{
 	  /* Avoid printing the upper bound if it's invalid.  */
 	  warned = (func
-		    ? warning_at (&richloc, OPT_Wstringop_overread,
+		    ? warning_at (loc, OPT_Wstringop_overread,
 				  (maybe
 				   ? G_("%qD may read %E or more bytes "
 					"from a region of size %E")
 				   : G_("%qD reading %E or more bytes "
 					"from a region of size %E")),
 				  func, range[0], size)
-		    : warning_at (&richloc, OPT_Wstringop_overread,
+		    : warning_at (loc, OPT_Wstringop_overread,
 				  (maybe
 				   ? G_("may read %E or more bytes "
 					"from a region of size %E")
@@ -1136,14 +1120,14 @@ warn_for_access (location_t loc, tree func, GimpleOrTree exp, int opt,
 	}
       else
 	warned = (func
-		  ? warning_at (&richloc, OPT_Wstringop_overread,
+		  ? warning_at (loc, OPT_Wstringop_overread,
 				(maybe
 				 ? G_("%qD may read between %E and %E bytes "
 				      "from a region of size %E")
 				 : G_("%qD reading between %E and %E bytes "
 				      "from a region of size %E")),
 				func, range[0], range[1], size)
-		  : warning_at (&richloc, opt,
+		  : warning_at (loc, opt,
 				(maybe
 				 ? G_("may read between %E and %E bytes "
 				      "from a region of size %E")
@@ -1160,12 +1144,12 @@ warn_for_access (location_t loc, tree func, GimpleOrTree exp, int opt,
   if (tree_int_cst_equal (range[0], range[1])
       || tree_int_cst_sign_bit (range[1]))
     warned = (func
-	      ? warning_n (&richloc, OPT_Wstringop_overread,
+	      ? warning_n (loc, OPT_Wstringop_overread,
 			   tree_to_uhwi (range[0]),
 			   "%qD expecting %E byte in a region of size %E",
 			   "%qD expecting %E bytes in a region of size %E",
 			   func, range[0], size)
-	      : warning_n (&richloc, OPT_Wstringop_overread,
+	      : warning_n (loc, OPT_Wstringop_overread,
 			   tree_to_uhwi (range[0]),
 			   "expecting %E byte in a region of size %E",
 			   "expecting %E bytes in a region of size %E",
@@ -1174,22 +1158,22 @@ warn_for_access (location_t loc, tree func, GimpleOrTree exp, int opt,
     {
       /* Avoid printing the upper bound if it's invalid.  */
       warned = (func
-		? warning_at (&richloc, OPT_Wstringop_overread,
+		? warning_at (loc, OPT_Wstringop_overread,
 			      "%qD expecting %E or more bytes in a region "
 			      "of size %E",
 			      func, range[0], size)
-		: warning_at (&richloc, OPT_Wstringop_overread,
+		: warning_at (loc, OPT_Wstringop_overread,
 			      "expecting %E or more bytes in a region "
 			      "of size %E",
 			      range[0], size));
     }
   else
     warned = (func
-	      ? warning_at (&richloc, OPT_Wstringop_overread,
+	      ? warning_at (loc, OPT_Wstringop_overread,
 			    "%qD expecting between %E and %E bytes in "
 			    "a region of size %E",
 			    func, range[0], range[1], size)
-	      : warning_at (&richloc, OPT_Wstringop_overread,
+	      : warning_at (loc, OPT_Wstringop_overread,
 			    "expecting between %E and %E bytes in "
 			    "a region of size %E",
 			    range[0], range[1], size));
@@ -1420,8 +1404,6 @@ check_access (GimpleOrTree exp, tree dstwrite,
 
 	  auto_diagnostic_group d;
 	  location_t loc = get_location (exp);
-	  rich_location_with_details richloc (loc, exp);
-
 	  bool warned = false;
 	  if (dstwrite == slen && at_least_one)
 	    {
@@ -1429,12 +1411,12 @@ check_access (GimpleOrTree exp, tree dstwrite,
 		 and a source of unknown length.  The call will write
 		 at least one byte past the end of the destination.  */
 	      warned = (func
-			? warning_at (&richloc, opt,
+			? warning_at (loc, opt,
 				      "%qD writing %E or more bytes into "
 				      "a region of size %E overflows "
 				      "the destination",
 				      func, range[0], dstsize)
-			: warning_at (&richloc, opt,
+			: warning_at (loc, opt,
 				      "writing %E or more bytes into "
 				      "a region of size %E overflows "
 				      "the destination",
@@ -2601,9 +2583,7 @@ pass_waccess::check_strncat (gcall *stmt)
       && tree_int_cst_equal (destsize, maxread))
     {
       location_t loc = get_location (stmt);
-      rich_location_with_details richloc (loc, stmt);
-
-      warning_at (&richloc, OPT_Wstringop_overflow_,
+      warning_at (loc, OPT_Wstringop_overflow_,
 		  "%qD specified bound %E equals destination size",
 		  get_callee_fndecl (stmt), maxread);
 
@@ -3484,14 +3464,13 @@ pass_waccess::maybe_check_access_sizes (rdwr_map *rwm, tree fndecl, tree fntype,
 	  && tree_int_cst_sgn (sizrng[0]) < 0
 	  && tree_int_cst_sgn (sizrng[1]) < 0)
 	{
-	  rich_location_with_details richloc (loc, stmt);
 	  /* Warn about negative sizes.  */
 	  if (access.second.internal_p)
 	    {
 	      const std::string argtypestr
 		= access.second.array_as_string (ptrtype);
 
-	      if (warning_at (&richloc, OPT_Wstringop_overflow_,
+	      if (warning_at (loc, OPT_Wstringop_overflow_,
 			      "bound argument %i value %s is "
 			      "negative for a variable length array "
 			      "argument %i of type %s",
@@ -3499,7 +3478,7 @@ pass_waccess::maybe_check_access_sizes (rdwr_map *rwm, tree fndecl, tree fntype,
 			      ptridx + 1, argtypestr.c_str ()))
 		arg_warned = OPT_Wstringop_overflow_;
 	    }
-	  else if (warning_at (&richloc, OPT_Wstringop_overflow_,
+	  else if (warning_at (loc, OPT_Wstringop_overflow_,
 			       "argument %i value %s is negative",
 			       sizidx + 1, sizstr))
 	    arg_warned = OPT_Wstringop_overflow_;

@@ -40,7 +40,6 @@
 #include "tree-object-size.h"
 #include "calls.h"
 #include "cfgloop.h"
-#include "diagnostic-context-rich-location.h"
 #include "intl.h"
 #include "gimple-range.h"
 
@@ -107,22 +106,10 @@ pass_wrestrict::execute (function *fun)
 {
   /* Create a new ranger instance and associate it with FUN.  */
   m_ptr_qry.rvals = enable_ranger (fun);
-  bool new_dominance_for_diagnostics = false;
-
-  if (flag_diagnostics_show_context
-      && !dom_info_available_p (fun, CDI_DOMINATORS))
-    {
-      calculate_dominance_info (CDI_DOMINATORS);
-      new_dominance_for_diagnostics = true;
-    }
 
   basic_block bb;
   FOR_EACH_BB_FN (bb, fun)
     check_block (bb);
-
-  if (new_dominance_for_diagnostics
-      && dom_info_available_p (fun, CDI_DOMINATORS))
-    free_dominance_info (fun, CDI_DOMINATORS);
 
   m_ptr_qry.flush_cache ();
 
@@ -1460,8 +1447,6 @@ maybe_diag_overlap (location_t loc, gimple *call, builtin_access &acs)
 
   tree func = gimple_call_fndecl (call);
 
-  rich_location_with_details richloc (loc, call);
-
   /* To avoid a combinatorial explosion of diagnostics format the offsets
      or their ranges as strings and use them in the warning calls below.  */
   char offstr[3][64];
@@ -1507,7 +1492,7 @@ maybe_diag_overlap (location_t loc, gimple *call, builtin_access &acs)
       if (sizrange[0] == sizrange[1])
 	{
 	  if (ovlsiz[0] == ovlsiz[1])
-	    warning_at (&richloc, OPT_Wrestrict,
+	    warning_at (loc, OPT_Wrestrict,
 			sizrange[0] == 1
 			? (ovlsiz[0] == 1
 			   ? G_("%qD accessing %wu byte at offsets %s "
@@ -1524,7 +1509,7 @@ maybe_diag_overlap (location_t loc, gimple *call, builtin_access &acs)
 			func, sizrange[0],
 			offstr[0], offstr[1], ovlsiz[0], offstr[2]);
 	  else if (ovlsiz[1] >= 0 && ovlsiz[1] < maxobjsize.to_shwi ())
-	    warning_n (&richloc, OPT_Wrestrict, sizrange[0],
+	    warning_n (loc, OPT_Wrestrict, sizrange[0],
 		       "%qD accessing %wu byte at offsets %s "
 		       "and %s overlaps between %wu and %wu bytes "
 		       "at offset %s",
@@ -1534,7 +1519,7 @@ maybe_diag_overlap (location_t loc, gimple *call, builtin_access &acs)
 		       func, sizrange[0], offstr[0], offstr[1],
 		       ovlsiz[0], ovlsiz[1], offstr[2]);
 	  else
-	    warning_n (&richloc, OPT_Wrestrict, sizrange[0],
+	    warning_n (loc, OPT_Wrestrict, sizrange[0],
 		       "%qD accessing %wu byte at offsets %s and "
 		       "%s overlaps %wu or more bytes at offset %s",
 		       "%qD accessing %wu bytes at offsets %s and "
@@ -1547,7 +1532,7 @@ maybe_diag_overlap (location_t loc, gimple *call, builtin_access &acs)
       if (sizrange[1] >= 0 && sizrange[1] < maxobjsize.to_shwi ())
 	{
 	  if (ovlsiz[0] == ovlsiz[1])
-	    warning_n (&richloc, OPT_Wrestrict, ovlsiz[0],
+	    warning_n (loc, OPT_Wrestrict, ovlsiz[0],
 		       "%qD accessing between %wu and %wu bytes "
 		       "at offsets %s and %s overlaps %wu byte at "
 		       "offset %s",
@@ -1557,7 +1542,7 @@ maybe_diag_overlap (location_t loc, gimple *call, builtin_access &acs)
 		       func, sizrange[0], sizrange[1],
 		       offstr[0], offstr[1], ovlsiz[0], offstr[2]);
 	  else if (ovlsiz[1] >= 0 && ovlsiz[1] < maxobjsize.to_shwi ())
-	    warning_at (&richloc, OPT_Wrestrict,
+	    warning_at (loc, OPT_Wrestrict,
 			"%qD accessing between %wu and %wu bytes at "
 			"offsets %s and %s overlaps between %wu and %wu "
 			"bytes at offset %s",
@@ -1565,7 +1550,7 @@ maybe_diag_overlap (location_t loc, gimple *call, builtin_access &acs)
 			offstr[0], offstr[1], ovlsiz[0], ovlsiz[1],
 			offstr[2]);
 	  else
-	    warning_at (&richloc, OPT_Wrestrict,
+	    warning_at (loc, OPT_Wrestrict,
 			"%qD accessing between %wu and %wu bytes at "
 			"offsets %s and %s overlaps %wu or more bytes "
 			"at offset %s",
@@ -1578,7 +1563,7 @@ maybe_diag_overlap (location_t loc, gimple *call, builtin_access &acs)
 	ovlsiz[1] = maxobjsize.to_shwi ();
 
       if (ovlsiz[0] == ovlsiz[1])
-	warning_n (&richloc, OPT_Wrestrict, ovlsiz[0],
+	warning_n (loc, OPT_Wrestrict, ovlsiz[0],
 		   "%qD accessing %wu or more bytes at offsets "
 		   "%s and %s overlaps %wu byte at offset %s",
 		   "%qD accessing %wu or more bytes at offsets "
@@ -1586,14 +1571,14 @@ maybe_diag_overlap (location_t loc, gimple *call, builtin_access &acs)
 		   func, sizrange[0], offstr[0], offstr[1],
 		   ovlsiz[0], offstr[2]);
       else if (ovlsiz[1] >= 0 && ovlsiz[1] < maxobjsize.to_shwi ())
-	warning_at (&richloc, OPT_Wrestrict,
+	warning_at (loc, OPT_Wrestrict,
 		    "%qD accessing %wu or more bytes at offsets %s "
 		    "and %s overlaps between %wu and %wu bytes "
 		    "at offset %s",
 		    func, sizrange[0], offstr[0], offstr[1],
 		    ovlsiz[0], ovlsiz[1], offstr[2]);
       else
-	warning_at (&richloc, OPT_Wrestrict,
+	warning_at (loc, OPT_Wrestrict,
 		    "%qD accessing %wu or more bytes at offsets %s "
 		    "and %s overlaps %wu or more bytes at offset %s",
 		    func, sizrange[0], offstr[0], offstr[1],
@@ -1621,14 +1606,14 @@ maybe_diag_overlap (location_t loc, gimple *call, builtin_access &acs)
       if (ovlsiz[1] == 1)
 	{
 	  if (open_range)
-	    warning_n (&richloc, OPT_Wrestrict, sizrange[1],
+	    warning_n (loc, OPT_Wrestrict, sizrange[1],
 		       "%qD accessing %wu byte may overlap "
 		       "%wu byte",
 		       "%qD accessing %wu bytes may overlap "
 		       "%wu byte",
 		       func, sizrange[1], ovlsiz[1]);
 	  else
-	    warning_n (&richloc, OPT_Wrestrict, sizrange[1],
+	    warning_n (loc, OPT_Wrestrict, sizrange[1],
 		       "%qD accessing %wu byte at offsets %s "
 		       "and %s may overlap %wu byte at offset %s",
 		       "%qD accessing %wu bytes at offsets %s "
@@ -1639,14 +1624,14 @@ maybe_diag_overlap (location_t loc, gimple *call, builtin_access &acs)
 	}
 
       if (open_range)
-	warning_n (&richloc, OPT_Wrestrict, sizrange[1],
+	warning_n (loc, OPT_Wrestrict, sizrange[1],
 		   "%qD accessing %wu byte may overlap "
 		   "up to %wu bytes",
 		   "%qD accessing %wu bytes may overlap "
 		   "up to %wu bytes",
 		   func, sizrange[1], ovlsiz[1]);
       else
-	warning_n (&richloc, OPT_Wrestrict, sizrange[1],
+	warning_n (loc, OPT_Wrestrict, sizrange[1],
 		   "%qD accessing %wu byte at offsets %s and "
 		   "%s may overlap up to %wu bytes at offset %s",
 		   "%qD accessing %wu bytes at offsets %s and "
@@ -1659,14 +1644,14 @@ maybe_diag_overlap (location_t loc, gimple *call, builtin_access &acs)
   if (sizrange[1] >= 0 && sizrange[1] < maxobjsize.to_shwi ())
     {
       if (open_range)
-	warning_n (&richloc, OPT_Wrestrict, ovlsiz[1],
+	warning_n (loc, OPT_Wrestrict, ovlsiz[1],
 		   "%qD accessing between %wu and %wu bytes "
 		   "may overlap %wu byte",
 		   "%qD accessing between %wu and %wu bytes "
 		   "may overlap up to %wu bytes",
 		   func, sizrange[0], sizrange[1], ovlsiz[1]);
       else
-	warning_n (&richloc, OPT_Wrestrict, ovlsiz[1],
+	warning_n (loc, OPT_Wrestrict, ovlsiz[1],
 		   "%qD accessing between %wu and %wu bytes "
 		   "at offsets %s and %s may overlap %wu byte "
 		   "at offset %s",
@@ -1678,7 +1663,7 @@ maybe_diag_overlap (location_t loc, gimple *call, builtin_access &acs)
       return true;
     }
 
-  warning_n (&richloc, OPT_Wrestrict, ovlsiz[1],
+  warning_n (loc, OPT_Wrestrict, ovlsiz[1],
 	     "%qD accessing %wu or more bytes at offsets %s "
 	     "and %s may overlap %wu byte at offset %s",
 	     "%qD accessing %wu or more bytes at offsets %s "
@@ -1708,8 +1693,6 @@ maybe_diag_access_bounds (gimple *call, tree func, int strict,
   location_t loc = gimple_location (call);
   const offset_int maxobjsize = ref.maxobjsize;
 
-  rich_location_with_details richloc (loc, call);
-
   /* Check for excessive size first and regardless of warning options
      since the result is used to make codegen decisions.  */
   if (ref.sizrange[0] > maxobjsize)
@@ -1726,13 +1709,13 @@ maybe_diag_access_bounds (gimple *call, tree func, int strict,
       if (warn_stringop_overflow)
 	{
 	  if (ref.sizrange[0] == ref.sizrange[1])
-	    warned = warning_at (&richloc, opt,
+	    warned = warning_at (loc, opt,
 				 "%qD specified bound %wu "
 				 "exceeds maximum object size %wu",
 				 func, ref.sizrange[0].to_uhwi (),
 				 maxobjsize.to_uhwi ());
 	  else
-	    warned = warning_at (&richloc, opt,
+	    warned = warning_at (loc, opt,
 				 "%qD specified bound between %wu and %wu "
 				 "exceeds maximum object size %wu",
 				 func, ref.sizrange[0].to_uhwi (),
@@ -1793,7 +1776,7 @@ maybe_diag_access_bounds (gimple *call, tree func, int strict,
 	  && TREE_CODE (type = TREE_TYPE (ref.base)) == ARRAY_TYPE)
 	{
 	  auto_diagnostic_group d;
-	  if (warning_at (&richloc, opt,
+	  if (warning_at (loc, opt,
 			  "%qD pointer overflow between offset %s "
 			  "and size %s accessing array %qD with type %qT",
 			  func, rangestr[0], rangestr[1], ref.base, type))
@@ -1803,13 +1786,13 @@ maybe_diag_access_bounds (gimple *call, tree func, int strict,
 	      warned = true;
 	    }
 	  else
-	    warned = warning_at (&richloc, opt,
+	    warned = warning_at (loc, opt,
 				 "%qD pointer overflow between offset %s "
 				 "and size %s",
 				 func, rangestr[0], rangestr[1]);
 	}
       else
-	warned = warning_at (&richloc, opt,
+	warned = warning_at (loc, opt,
 			     "%qD pointer overflow between offset %s "
 			     "and size %s",
 			     func, rangestr[0], rangestr[1]);
@@ -1825,7 +1808,7 @@ maybe_diag_access_bounds (gimple *call, tree func, int strict,
 	{
 	  auto_diagnostic_group d;
 	  if ((ref.basesize < maxobjsize
-	       && warning_at (&richloc, opt,
+	       && warning_at (loc, opt,
 			      form
 			      ? G_("%qD forming offset %s is out of "
 				   "the bounds [0, %wu] of object %qD with "
@@ -1834,7 +1817,7 @@ maybe_diag_access_bounds (gimple *call, tree func, int strict,
 				   "[0, %wu] of object %qD with type %qT"),
 			      func, rangestr[0], ref.basesize.to_uhwi (),
 			      ref.base, TREE_TYPE (ref.base)))
-	      || warning_at (&richloc, opt,
+	      || warning_at (loc, opt,
 			     form
 			     ? G_("%qD forming offset %s is out of "
 				  "the bounds of object %qD with type %qT")
@@ -1849,7 +1832,7 @@ maybe_diag_access_bounds (gimple *call, tree func, int strict,
 	    }
 	}
       else if (ref.basesize < maxobjsize)
-	warned = warning_at (&richloc, opt,
+	warned = warning_at (loc, opt,
 			     form
 			     ? G_("%qD forming offset %s is out "
 				  "of the bounds [0, %wu]")
@@ -1857,7 +1840,7 @@ maybe_diag_access_bounds (gimple *call, tree func, int strict,
 				  "of the bounds [0, %wu]"),
 			     func, rangestr[0], ref.basesize.to_uhwi ());
       else
-	warned = warning_at (&richloc, opt,
+	warned = warning_at (loc, opt,
 			     form
 			     ? G_("%qD forming offset %s is out of bounds")
 			     : G_("%qD offset %s is out of bounds"),
@@ -1871,7 +1854,7 @@ maybe_diag_access_bounds (gimple *call, tree func, int strict,
 	type = TREE_TYPE (type);
       type = TYPE_MAIN_VARIANT (type);
 
-      if (warning_at (&richloc, opt,
+      if (warning_at (loc, opt,
 		      "%qD offset %s from the object at %qE is out "
 		      "of the bounds of %qT",
 		      func, rangestr[0], ref.base, type))
@@ -1889,7 +1872,7 @@ maybe_diag_access_bounds (gimple *call, tree func, int strict,
       tree refop = TREE_OPERAND (ref.ref, 0);
       tree type = TYPE_MAIN_VARIANT (TREE_TYPE (ref.ref));
 
-      if (warning_at (&richloc, opt,
+      if (warning_at (loc, opt,
 		      "%qD offset %s from the object at %qE is out "
 		      "of the bounds of referenced subobject %qD with "
 		      "type %qT at offset %wi",
